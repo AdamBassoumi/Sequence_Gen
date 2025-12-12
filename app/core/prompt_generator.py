@@ -23,6 +23,60 @@ class StoryPrompt(BaseModel):
         default_factory=lambda: ["consistent visual style", "cohesive narrative"],
         description="Keywords to maintain consistency"
     )
+    
+    # Add prompt property for API compatibility
+    @property
+    def prompt(self) -> str:
+        """Generate a complete prompt string for image generation"""
+        components = []
+        
+        # Add character reference if present
+        if self.character_reference:
+            components.append(f"{self.character_reference}")
+        
+        # Add scene description
+        components.append(self.description)
+        
+        # Add visual context
+        components.append(self.visual_context)
+        
+        # Add environment and lighting
+        components.append(f"in {self.background_details}")
+        components.append(f"with {self.lighting_style}")
+        
+        # Add style and quality keywords
+        components.append("photorealistic, cinematic, 8k, high detail")
+        
+        # Add consistency keywords
+        if self.consistency_keywords:
+            components.append(", ".join(self.consistency_keywords))
+        
+        # Join all components
+        prompt = ", ".join(components)
+        
+        # Clean up any accidental descriptive phrases about celebrities
+        prompt = self._clean_celebrity_descriptions(prompt)
+        
+        return prompt
+    
+    def _clean_celebrity_descriptions(self, prompt: str) -> str:
+        """Remove any accidental celebrity physical descriptions"""
+        patterns_to_remove = [
+            r' with (?:his|her) (?:signature|distinctive|characteristic) .+?(?:,|$)',
+            r' featuring (?:his|her) .+? (?:appearance|look|style)',
+            r' (?:wearing|sporting) (?:his|her) .+?(?:,|$)',
+            r' (?:known for|recognizable by) .+?(?:,|$)',
+            r' with (?:intense|piercing|striking) .+?(?:,|$)',
+        ]
+        
+        for pattern in patterns_to_remove:
+            prompt = re.sub(pattern, '', prompt, flags=re.IGNORECASE)
+        
+        # Remove double commas and clean up
+        prompt = re.sub(r',\s*,', ',', prompt)
+        prompt = re.sub(r',\s*$', '', prompt)
+        
+        return prompt.strip()
 
 class GeneratedPrompts(BaseModel):
     """Model for the complete story prompts"""
@@ -53,25 +107,8 @@ class PromptGenerator:
         self.client = Groq(api_key=self.api_key)
         self.model = "llama-3.1-8b-instant"
     
-    def extract_celebrity_reference(self, user_prompt: str) -> Optional[str]:
-        """Extract celebrity name from user input if present"""
-        patterns = [
-            r'(?i)\b(keanu reeves|leonardo dicaprio|tom cruise|brad pitt|'
-            r'jennifer lawrence|scarlett johansson|margot robbie|'
-            r'chris hemsworth|robert downey jr|johnny depp|'
-            r'dwayne johnson|will smith|tom hanks|meryl streep)\b'
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, user_prompt, re.IGNORECASE)
-            if match:
-                return match.group(1).title()
-        return None
-    
-    def generate_story_prompts(self, user_prompt: str, num_scenes: int = 3) -> GeneratedPrompts:
+    def generate_story_prompts(self, user_prompt: str, max_num_scenes: int = 3) -> GeneratedPrompts:
         """Generate story prompts while preserving user's celebrity references"""
-        
-        celebrity_ref = self.extract_celebrity_reference(user_prompt)
         
         system_prompt = """You are a professional visual storyteller for AI image generation.
         Your task is to create cinematic scene descriptions that work with AI image models.
@@ -102,7 +139,11 @@ class PromptGenerator:
             ]
         }"""
         
-        user_prompt = f"""Create {num_scenes} cinematic image prompts for: "{user_prompt}"
+        user_prompt = f"""Create cinematic image prompts for: "{user_prompt}"
+        
+        Max Number of scenes: {max_num_scenes}
+
+        You dont need to Generate The maximum number always
         
         Guidelines:
         1. Focus on scene composition, lighting, and atmosphere
@@ -128,11 +169,6 @@ class PromptGenerator:
             content = response.choices[0].message.content
             result = json.loads(content)
             
-            # Inject celebrity reference if extracted from user input
-            if celebrity_ref and "prompts" in result:
-                for prompt in result["prompts"]:
-                    prompt["character_reference"] = celebrity_ref
-            
             # Ensure backward compatibility fields exist
             if "character_concept" not in result:
                 result["character_concept"] = result.get("visual_style", "")
@@ -146,56 +182,8 @@ class PromptGenerator:
     
     def create_image_prompt(self, story_prompt: StoryPrompt) -> str:
         """Create AI-friendly image prompt that preserves celebrity references safely"""
-        
-        components = []
-        
-        # Add character reference if present (simple mention only)
-        if story_prompt.character_reference:
-            components.append(f"{story_prompt.character_reference}")
-        
-        # Add scene description
-        components.append(story_prompt.description)
-        
-        # Add visual context
-        components.append(story_prompt.visual_context)
-        
-        # Add environment and lighting
-        components.append(f"in {story_prompt.background_details}")
-        components.append(f"with {story_prompt.lighting_style}")
-        
-        # Add style and quality keywords
-        components.append("photorealistic, cinematic, 8k, high detail")
-        
-        # Add consistency keywords
-        if story_prompt.consistency_keywords:
-            components.append(", ".join(story_prompt.consistency_keywords))
-        
-        # Join all components
-        prompt = ", ".join(components)
-        
-        # Clean up any accidental descriptive phrases about celebrities
-        prompt = self.clean_celebrity_descriptions(prompt)
-        
-        return prompt
-    
-    def clean_celebrity_descriptions(self, prompt: str) -> str:
-        """Remove any accidental celebrity physical descriptions"""
-        patterns_to_remove = [
-            r' with (?:his|her) (?:signature|distinctive|characteristic) .+?(?:,|$)',
-            r' featuring (?:his|her) .+? (?:appearance|look|style)',
-            r' (?:wearing|sporting) (?:his|her) .+?(?:,|$)',
-            r' (?:known for|recognizable by) .+?(?:,|$)',
-            r' with (?:intense|piercing|striking) .+?(?:,|$)',
-        ]
-        
-        for pattern in patterns_to_remove:
-            prompt = re.sub(pattern, '', prompt, flags=re.IGNORECASE)
-        
-        # Remove double commas and clean up
-        prompt = re.sub(r',\s*,', ',', prompt)
-        prompt = re.sub(r',\s*$', '', prompt)
-        
-        return prompt.strip()
+        # Just use the prompt property from StoryPrompt
+        return story_prompt.prompt
     
     def validate_prompt_safety(self, prompt: str) -> tuple[bool, List[str]]:
         """Validate that prompt doesn't contain problematic celebrity descriptions"""

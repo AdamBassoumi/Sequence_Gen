@@ -12,8 +12,8 @@ class PhotoSequenceClient:
             f"{self.base_url}/generate-story",
             json={
                 "prompt": prompt,
-                "num_scenes": num_scenes,
-                "remove_watermarks": True
+                "max_num_scenes": num_scenes,
+                "remove_watermarks": False
             }
         )
         
@@ -66,21 +66,23 @@ class PhotoSequenceClient:
         
         # Get story info
         story_info = self.check_status(story_id)
-        if not story_info or not story_info.get("image_urls"):
-            print("No images available")
+        if not story_info or not story_info.get("scenes"):
+            print("No scenes available")
             return
         
-        # Download each image
-        for i, url in enumerate(story_info["image_urls"]):
-            response = requests.get(f"{self.base_url}{url}")
-            
-            if response.status_code == 200:
-                filename = f"{output_dir}/{story_id}_{i}.png"
-                with open(filename, "wb") as f:
-                    f.write(response.content)
-                print(f"Downloaded: {filename}")
-            else:
-                print(f"Failed to download image {i}")
+        # Download each image from scenes
+        for i, scene in enumerate(story_info["scenes"]):
+            if scene.get("image_url"):
+                image_url = f"{self.base_url}{scene['image_url']}"
+                response = requests.get(image_url)
+                
+                if response.status_code == 200:
+                    filename = f"{output_dir}/{story_id}_scene_{i+1}.png"
+                    with open(filename, "wb") as f:
+                        f.write(response.content)
+                    print(f"Downloaded: {filename}")
+                else:
+                    print(f"Failed to download scene {i+1} image")
 
 def main():
     """Test the API with a user prompt"""
@@ -104,13 +106,19 @@ def main():
     story_id = result["story_id"]
     print(f"Story ID: {story_id}")
     print(f"Title: {result['story_title']}")
-    print(f"Character: {result['character_name']}")
+    print(f"Visual Style: {result.get('visual_style', 'N/A')}")
+    print(f"Character Concept: {result.get('character_concept', 'N/A')}")
     
-    # Show prompts
-    print("\nGenerated Prompts:")
-    for i, p in enumerate(result["prompts"], 1):
-        print(f"\nScene {i}:")
-        print(p[:200] + "..." if len(p) > 200 else p)
+    # Show scenes instead of prompts
+    print("\nGenerated Scenes:")
+    if "scenes" in result:
+        for i, scene in enumerate(result["scenes"], 1):
+            print(f"\nScene {i}:")
+            print(f"  Description: {scene.get('scene_description', 'N/A')}")
+            prompt_text = scene.get('prompt', '')
+            print(f"  Prompt: {prompt_text[:150]}..." if len(prompt_text) > 150 else f"  Prompt: {prompt_text}")
+    else:
+        print("No scenes generated")
     
     # Wait for completion
     print(f"\nWaiting for image generation...")
@@ -119,17 +127,28 @@ def main():
     if final_result and final_result["status"] == "completed":
         print("\n✅ Generation complete!")
         
+        # Show completed scenes
+        print("\nCompleted Scenes:")
+        for i, scene in enumerate(final_result["scenes"], 1):
+            print(f"\nScene {i}:")
+            print(f"  Prompt: {scene.get('prompt', '')[:100]}...")
+            if scene.get("image_url"):
+                print(f"  Image: {client.base_url}{scene['image_url']}")
+        
         # Download images
         download = input("\nDownload images? (y/n): ").lower().strip()
         if download == 'y':
             client.download_images(story_id)
             print(f"\nImages saved to 'downloads/' directory")
         
-        # Show image URLs
-        print(f"\nImage URLs:")
-        for i, url in enumerate(final_result["image_urls"], 1):
-            print(f"Scene {i}: {client.base_url}{url}")
-    
+        # Optional: Show complete story with images
+        view_complete = input("\nView complete story with embedded images? (y/n): ").lower().strip()
+        if view_complete == 'y':
+            complete_response = requests.get(f"{client.base_url}/story/{story_id}/complete")
+            if complete_response.status_code == 200:
+                complete_data = complete_response.json()
+                print(f"\nComplete story with {len(complete_data.get('scenes', []))} scenes")
+                
     else:
         print("\n❌ Generation failed or timed out")
 

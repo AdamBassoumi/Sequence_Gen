@@ -2,10 +2,13 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import uuid
 import os
+import json
+import shutil
 from datetime import datetime
+from pathlib import Path
 
 from app.core.prompt_generator import PromptGenerator, GeneratedPrompts
 from app.core.image_generator import ImageGenerator
@@ -14,8 +17,15 @@ from app.core.watermark_remover import WatermarkRemover
 # Models
 class StoryRequest(BaseModel):
     prompt: str
-    num_scenes: int = 3
+    max_num_scenes: int = 5
     remove_watermarks: bool = False
+
+class SceneOutput(BaseModel):
+    """Model for individual scene output"""
+    scene_number: int
+    prompt: str
+    image_url: Optional[str] = None
+    image_path: Optional[str] = None  # Local file path
 
 class StoryResponse(BaseModel):
     story_id: str
@@ -23,10 +33,10 @@ class StoryResponse(BaseModel):
     story_title: str
     character_concept: Optional[str] = None
     visual_style: str
-    character_name: Optional[str] = None  # For backward compatibility
-    prompts: List[str]
-    image_urls: Optional[List[str]] = None
+    character_name: Optional[str] = None
+    scenes: List[SceneOutput]
     created_at: str
+    output_dir: Optional[str] = None  # Path to output directory
 
 # Initialize app
 app = FastAPI(
@@ -52,6 +62,10 @@ watermark_remover = None
 # Storage for generated stories
 story_store = {}
 
+# Create outputs directory
+OUTPUTS_DIR = Path("outputs")
+OUTPUTS_DIR.mkdir(exist_ok=True)
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize components on startup"""
@@ -62,6 +76,7 @@ async def startup_event():
         image_gen = ImageGenerator()
         # watermark_remover = WatermarkRemover()  # Commented out temporarily
         print("All components initialized successfully")
+        print(f"Outputs will be saved to: {OUTPUTS_DIR.absolute()}")
     except Exception as e:
         print(f"Warning: {str(e)}")
 
@@ -72,17 +87,42 @@ async def generate_story(request: StoryRequest, background_tasks: BackgroundTask
         # Generate story ID
         story_id = str(uuid.uuid4())
         
+        # Create output directory for this story
+        story_output_dir = OUTPUTS_DIR / story_id
+        story_output_dir.mkdir(exist_ok=True)
+        
         # Generate prompts
         generated_prompts = prompt_gen.generate_story_prompts(
-            request.prompt, 
-            request.num_scenes
+            request.prompt,
+            max_num_scenes=request.max_num_scenes
         )
         
-        # Create image prompts
-        image_prompts = [
-            prompt_gen.create_image_prompt(p) 
-            for p in generated_prompts.prompts
-        ]
+        # Save prompts to JSON file
+        prompts_file = story_output_dir / "prompts.json"
+        with open(prompts_file, "w") as f:
+            json.dump({
+                "story_id": story_id,
+                "user_prompt": request.prompt,
+                "story_title": generated_prompts.story_title,
+                "visual_style": generated_prompts.visual_style,
+                "character_concept": generated_prompts.character_concept,
+                "character_name": generated_prompts.character_name,
+                "generated_prompts": [p.prompt for p in generated_prompts.prompts],
+                "created_at": datetime.now().isoformat()
+            }, f, indent=2)
+        
+        # Extract the prompt strings
+        image_prompts = [p.prompt for p in generated_prompts.prompts]
+        
+        # Create initial scene outputs
+        scenes = []
+        for i, prompt_text in enumerate(image_prompts):
+            scenes.append(SceneOutput(
+                scene_number=i + 1,
+                prompt=prompt_text,
+                image_url=f"/images/{story_id}/{i}.png",
+                image_path=str(story_output_dir / f"scene_{i+1}.png")
+            ))
         
         # Store story info
         story_data = {
@@ -93,7 +133,9 @@ async def generate_story(request: StoryRequest, background_tasks: BackgroundTask
             "visual_style": generated_prompts.visual_style,
             "character_name": generated_prompts.character_name,
             "prompts": image_prompts,
+            "scenes": [scene.dict() for scene in scenes],
             "images": [],
+            "output_dir": str(story_output_dir),
             "created_at": datetime.now().isoformat()
         }
         story_store[story_id] = story_data
@@ -103,6 +145,7 @@ async def generate_story(request: StoryRequest, background_tasks: BackgroundTask
             generate_images_task,
             story_id,
             image_prompts,
+            scenes,
             request.remove_watermarks
         )
         
@@ -113,14 +156,15 @@ async def generate_story(request: StoryRequest, background_tasks: BackgroundTask
             character_concept=generated_prompts.character_concept,
             visual_style=generated_prompts.visual_style,
             character_name=generated_prompts.character_name,
-            prompts=image_prompts,
+            scenes=scenes,
+            output_dir=str(story_output_dir),
             created_at=story_data["created_at"]
         )
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/story/{story_id}")
+@app.get("/story/{story_id}", response_model=StoryResponse)
 async def get_story(story_id: str):
     """Get story status and results"""
     if story_id not in story_store:
@@ -128,10 +172,22 @@ async def get_story(story_id: str):
     
     story = story_store[story_id]
     
-    # Create image URLs if images exist
-    image_urls = None
-    if story.get("images"):
-        image_urls = [f"/images/{story_id}/{i}.png" for i in range(len(story["images"]))]
+    # Reconstruct scenes with updated image paths
+    scenes = []
+    for i, scene_data in enumerate(story.get("scenes", [])):
+        image_url = None
+        image_path = None
+        
+        if story.get("images") and i < len(story["images"]):
+            image_url = f"/images/{story_id}/{i}.png"
+            image_path = story["images"][i]
+        
+        scenes.append(SceneOutput(
+            scene_number=scene_data.get("scene_number", i + 1),
+            prompt=scene_data.get("prompt", story["prompts"][i] if i < len(story.get("prompts", [])) else ""),
+            image_url=image_url,
+            image_path=image_path
+        ))
     
     return StoryResponse(
         story_id=story_id,
@@ -140,8 +196,8 @@ async def get_story(story_id: str):
         character_concept=story.get("character_concept"),
         visual_style=story.get("visual_style", "cinematic"),
         character_name=story.get("character_name"),
-        prompts=story["prompts"],
-        image_urls=image_urls,
+        scenes=scenes,
+        output_dir=story.get("output_dir"),
         created_at=story["created_at"]
     )
 
@@ -156,7 +212,6 @@ async def get_image(story_id: str, image_index: int):
     if not story.get("images") or image_index >= len(story["images"]):
         raise HTTPException(status_code=404, detail="Image not found")
     
-    # In production, serve from file system or cloud storage
     image_path = story["images"][image_index]
     
     if os.path.exists(image_path):
@@ -164,42 +219,118 @@ async def get_image(story_id: str, image_index: int):
     else:
         raise HTTPException(status_code=404, detail="Image file not found")
 
+@app.get("/story/{story_id}/download")
+async def download_story(story_id: str):
+    """Download entire story as a ZIP file"""
+    if story_id not in story_store:
+        raise HTTPException(status_code=404, detail="Story not found")
+    
+    story = story_store[story_id]
+    output_dir = story.get("output_dir")
+    
+    if not output_dir or not os.path.exists(output_dir):
+        raise HTTPException(status_code=404, detail="Story output directory not found")
+    
+    # Create ZIP file
+    import zipfile
+    zip_path = f"outputs/{story_id}.zip"
+    
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        # Add all files in the story directory
+        for root, dirs, files in os.walk(output_dir):
+            for file in files:
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, start=output_dir)
+                zipf.write(file_path, arcname=f"{story_id}/{arcname}")
+    
+    return FileResponse(zip_path, media_type="application/zip", filename=f"{story_id}.zip")
+
+@app.get("/story/{story_id}/files")
+async def list_story_files(story_id: str):
+    """List all files in the story output directory"""
+    if story_id not in story_store:
+        raise HTTPException(status_code=404, detail="Story not found")
+    
+    story = story_store[story_id]
+    output_dir = story.get("output_dir")
+    
+    if not output_dir or not os.path.exists(output_dir):
+        raise HTTPException(status_code=404, detail="Story output directory not found")
+    
+    files = []
+    for file in os.listdir(output_dir):
+        file_path = os.path.join(output_dir, file)
+        if os.path.isfile(file_path):
+            files.append({
+                "name": file,
+                "path": file_path,
+                "size": os.path.getsize(file_path),
+                "type": os.path.splitext(file)[1]
+            })
+    
+    return {
+        "story_id": story_id,
+        "output_dir": output_dir,
+        "files": files
+    }
+
+@app.get("/stories")
+async def list_stories():
+    """List all generated stories"""
+    stories = []
+    for story_id, story_data in story_store.items():
+        stories.append({
+            "story_id": story_id,
+            "title": story_data.get("story_title", "Untitled"),
+            "status": story_data.get("status", "unknown"),
+            "created_at": story_data.get("created_at"),
+            "scenes_count": len(story_data.get("prompts", [])),
+            "output_dir": story_data.get("output_dir")
+        })
+    
+    # Also check for stories in outputs directory that might not be in memory
+    for story_dir in OUTPUTS_DIR.iterdir():
+        if story_dir.is_dir() and story_dir.name not in story_store:
+            prompts_file = story_dir / "prompts.json"
+            if prompts_file.exists():
+                try:
+                    with open(prompts_file, "r") as f:
+                        prompts_data = json.load(f)
+                    
+                    stories.append({
+                        "story_id": story_dir.name,
+                        "title": prompts_data.get("story_title", "Untitled"),
+                        "status": "archived",  # Not in active memory
+                        "created_at": prompts_data.get("created_at"),
+                        "scenes_count": len(prompts_data.get("generated_prompts", [])),
+                        "output_dir": str(story_dir)
+                    })
+                except:
+                    pass
+    
+    return {"stories": stories}
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
-
-@app.get("/debug/prompt-structure")
-async def debug_prompt_structure():
-    """Debug endpoint to check prompt structure"""
-    try:
-        # Create a test prompt to see the structure
-        test_prompt = "A heroic astronaut on Mars"
-        prompts = prompt_gen.generate_story_prompts(test_prompt, 1)
-        
-        return {
-            "fields_available": dir(prompts),
-            "story_title": prompts.story_title,
-            "visual_style": prompts.visual_style,
-            "character_concept": prompts.character_concept,
-            "character_name": prompts.character_name,
-            "has_character_concept": hasattr(prompts, 'character_concept'),
-            "has_character_name": hasattr(prompts, 'character_name'),
-            "prompts_count": len(prompts.prompts)
-        }
-    except Exception as e:
-        return {"error": str(e)}
+    return {
+        "status": "healthy", 
+        "timestamp": datetime.now().isoformat(),
+        "outputs_dir": str(OUTPUTS_DIR.absolute()),
+        "stories_count": len(story_store)
+    }
 
 # Background task
-async def generate_images_task(story_id: str, prompts: List[str], remove_watermarks: bool):
-    """Background task to generate images"""
+async def generate_images_task(story_id: str, prompts: List[str], scenes: List[SceneOutput], remove_watermarks: bool):
+    """Background task to generate images and save to outputs directory"""
     try:
         story = story_store[story_id]
+        output_dir = Path(story.get("output_dir", OUTPUTS_DIR / story_id))
         
         # Generate images
         images = image_gen.generate_sequence(prompts)
         
-        # Remove watermarks if requested and watermark remover is available
+        # Remove watermarks if requested
         if remove_watermarks and watermark_remover:
             try:
                 print(f"Removing watermarks for story {story_id}...")
@@ -207,26 +338,64 @@ async def generate_images_task(story_id: str, prompts: List[str], remove_waterma
             except Exception as e:
                 print(f"Watermark removal failed: {e}, using original images")
         
-        # Save images
+        # Save images to output directory
         saved_paths = []
-        output_dir = f"generated_images/{story_id}"
-        os.makedirs(output_dir, exist_ok=True)
+        for i, (img, scene) in enumerate(zip(images, scenes)):
+            # Save as scene_1.png, scene_2.png, etc.
+            filename = f"scene_{i+1}.png"
+            image_path = output_dir / filename
+            img.save(image_path, "PNG")
+            saved_paths.append(str(image_path))
+            
+            # Update scene with actual image path
+            scene.image_path = str(image_path)
+            
+            # Update story scenes data
+            if i < len(story["scenes"]):
+                story["scenes"][i]["image_path"] = str(image_path)
         
-        for i, img in enumerate(images):
-            path = f"{output_dir}/{i}.png"
-            img.save(path, "PNG")
-            saved_paths.append(path)
+        # Update prompts.json with image paths
+        prompts_file = output_dir / "prompts.json"
+        if prompts_file.exists():
+            with open(prompts_file, "r") as f:
+                prompts_data = json.load(f)
+            
+            prompts_data["image_paths"] = saved_paths
+            prompts_data["completed_at"] = datetime.now().isoformat()
+            prompts_data["status"] = "completed"
+            
+            with open(prompts_file, "w") as f:
+                json.dump(prompts_data, f, indent=2)
         
-        # Update story
+        # Update story in memory
         story["images"] = saved_paths
         story["status"] = "completed"
+        story["completed_at"] = datetime.now().isoformat()
         
-        print(f"Story {story_id} completed successfully")
+        print(f"✅ Story {story_id} completed successfully")
+        print(f"📁 Output saved to: {output_dir}")
         
     except Exception as e:
         story_store[story_id]["status"] = "failed"
         story_store[story_id]["error"] = str(e)
-        print(f"Failed to generate images for story {story_id}: {str(e)}")
+        
+        # Save error info to prompts.json
+        try:
+            output_dir = Path(story.get("output_dir", OUTPUTS_DIR / story_id))
+            prompts_file = output_dir / "prompts.json"
+            if prompts_file.exists():
+                with open(prompts_file, "r") as f:
+                    prompts_data = json.load(f)
+                
+                prompts_data["status"] = "failed"
+                prompts_data["error"] = str(e)
+                
+                with open(prompts_file, "w") as f:
+                    json.dump(prompts_data, f, indent=2)
+        except:
+            pass
+        
+        print(f"❌ Failed to generate images for story {story_id}: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
