@@ -8,6 +8,9 @@ class Settings(BaseSettings):
 
     GROQ_API_KEY: str
 
+    HUGGING_FACE_KEY: str
+    HUGGING_FACE_MODEL: str
+
     POLLINATIONS_TIMEOUT: int
     POLLINATIONS_RETRIES: int
 

@@ -13,6 +13,7 @@ from app.core.prompt_generator import PromptGenerator
 from fastapi import FastAPI
 from app.routes import base, story_gen
 
+from app.core.HuggingFace import HuggingFace
 # Initialize app
 app = FastAPI(
     title="Photo Sequence Generator API",
@@ -41,7 +42,12 @@ async def startup_event():
     settings = get_settings()
     try:
         app.prompt_gen = PromptGenerator()
-        app.image_gen = ImageGenerator()
+        # app.image_gen = ImageGenerator()
+        app.image_gen = HuggingFace(
+            settings.HUGGING_FACE_KEY,
+            settings.HUGGING_FACE_MODEL
+        )
+        
         # watermark_remover = WatermarkRemover()  # Commented out temporarily
         print("All components initialized successfully")
     except Exception as e:
