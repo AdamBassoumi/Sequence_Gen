@@ -330,7 +330,6 @@ async def health_check():
     }
 
 
-go
 if __name__ == "__main__":
     import uvicorn
 
