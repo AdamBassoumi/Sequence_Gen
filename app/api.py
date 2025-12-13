@@ -1,20 +1,15 @@
-from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
-from app.helpers.config import get_settings
-from app.core.PolliNationsImgGenerator import PolliNationsImgGenerator
-
-from app.core.prompt_generator import PromptGenerator
 
 from fastapi import FastAPI
-from app.routes import base, story_gen
-
-from app.core.prompt_generator import PromptGenerator
-
-from fastapi import FastAPI
-from app.routes import base, story_gen
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.HuggingFace import HuggingFace
 from app.core.ImageGeneratorProvider import ImageGeneratorProvider
+from app.core.PolliNationsImgGenerator import PolliNationsImgGenerator
+from app.core.prompt_generator import PromptGenerator
+from app.helpers.config import get_settings
+from app.routes import base, story_gen
+
 # Initialize app
 app = FastAPI(
     title="Photo Sequence Generator API",
@@ -34,6 +29,7 @@ app.add_middleware(
 
 # Storage for generated stories
 story_store = {}
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -57,9 +53,5 @@ async def startup_event():
         print(f"Warning: {str(e)}")
 
 
-
-
-
 app.include_router(base.base_router)
 app.include_router(story_gen.story_router)
-

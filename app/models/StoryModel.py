@@ -17,7 +17,6 @@ class StoryModel:
         scenes: List[SceneOutput],
         remove_watermarks: bool,
         story_store: dict,
-
     ):
         """Background task to generate images and save to outputs directory"""
         try:
@@ -93,4 +92,3 @@ class StoryModel:
                 pass
 
             print(f"❌ Failed to generate images for story {story_id}: {str(e)}")
-

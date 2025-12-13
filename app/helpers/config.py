@@ -1,10 +1,10 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
 
     APP_NAME: str
     APP_VERSION: str
-
 
     IMG_GEN_PROVIDER: str
 
@@ -21,10 +21,9 @@ class Settings(BaseSettings):
 
     OUTPUTS_DIR_PATH: str
 
-
     class Config:
         env_file = "../../.env"
-        
-        
+
+
 def get_settings():
     return Settings()

@@ -6,23 +6,18 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException , APIRouter, Request
+from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 from app.core.prompt_generator import GeneratedPrompts, PromptGenerator
 from app.core.watermark_remover import WatermarkRemover
-
-from app.models.StoryModel import StoryModel 
-
-from app.schemas import *
 from app.helpers.config import get_settings
+from app.models.StoryModel import StoryModel
+from app.schemas import *
 
-story_router = APIRouter(
-    prefix= "/api/v1/story",
-    tags= ["api_v1","story"]
-)
+story_router = APIRouter(prefix="/api/v1/story", tags=["api_v1", "story"])
 
 # Global instances
 # prompt_gen = None
@@ -40,13 +35,16 @@ OUTPUTS_DIR = Path(settings.OUTPUTS_DIR_PATH)
 OUTPUTS_DIR.mkdir(exist_ok=True)
 
 
-
 @story_router.post("/generate-story", response_model=StoryResponse)
-async def generate_story(request: Request,story_request: StoryRequest, background_tasks: BackgroundTasks):
+async def generate_story(
+    request: Request, story_request: StoryRequest, background_tasks: BackgroundTasks
+):
     """Generate a story sequence from a prompt"""
     try:
-        # get story model 
-        story_model = StoryModel(image_gen_client= request.app.image_gen, outputs_dir= OUTPUTS_DIR)
+        # get story model
+        story_model = StoryModel(
+            image_gen_client=request.app.image_gen, outputs_dir=OUTPUTS_DIR
+        )
 
         # Generate story ID
         story_id = str(uuid.uuid4())

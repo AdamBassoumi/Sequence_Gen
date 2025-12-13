@@ -1,11 +1,12 @@
 from huggingface_hub import InferenceClient
 from PIL import Image
 
+
 class HuggingFace:
     def __init__(self, api_key, hugging_face_model):
         self.client = InferenceClient(
             provider="nscale",
-            api_key= api_key,
+            api_key=api_key,
         )
         self.hugging_face_model = hugging_face_model
 
@@ -16,7 +17,7 @@ class HuggingFace:
 
                 img = self.client.text_to_image(
                     prompt,
-                    model= self.hugging_face_model,
+                    model=self.hugging_face_model,
                 )
 
                 # Verify image is valid
