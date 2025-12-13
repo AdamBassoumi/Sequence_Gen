@@ -47,7 +47,7 @@ Follow the prompts to generate a story sequence.
 
 ### Future Updates
 
-#### Front End Dev
+#### Front End Dev (like a manga)
 #### WaterMark Script
-#### ML_FLOW 
-#### 
+#### MLOPS : CI/CD
+#### Support For Image Captioning 

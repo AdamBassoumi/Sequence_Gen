@@ -1,9 +1,10 @@
-from pathlib import Path
 import json
 from datetime import datetime
+from pathlib import Path
+
 
 class StoryModel:
-    def __init__(self, image_gen_client:object, outputs_dir):
+    def __init__(self, image_gen_client: object, outputs_dir):
         self.image_gen_client = image_gen_client
         self.OUTPUTS_DIR = outputs_dir
 
@@ -14,7 +15,7 @@ class StoryModel:
         prompts: List[str],
         scenes: List[SceneOutput],
         remove_watermarks: bool,
-        story_store: dict,  
+        story_store: dict,
     ):
         """Background task to generate images and save to outputs directory"""
         try:
@@ -90,4 +91,3 @@ class StoryModel:
                 pass
 
             print(f"❌ Failed to generate images for story {story_id}: {str(e)}")
-

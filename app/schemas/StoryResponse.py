@@ -1,6 +1,9 @@
+from typing import List, Optional
+
 from pydantic import BaseModel
-from typing import Optional, List
+
 from .SceneOutput import SceneOutput
+
 
 class StoryResponse(BaseModel):
     story_id: str
@@ -12,4 +15,3 @@ class StoryResponse(BaseModel):
     scenes: List[SceneOutput]
     created_at: str
     output_dir: Optional[str] = None  # Path to output directory
-

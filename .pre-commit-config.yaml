@@ -1,0 +1,41 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        entry: uv run black .
+        language: system
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        entry: uv run isort .
+        language: system
+        pass_filenames: false
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        language: system
+        entry: python -c "import sys, subprocess; subprocess.run(['uv', 'run', 'flake8', 'app']); sys.exit(0)"
+        files: ^app/
+        pass_filenames: false
+        verbose: true   # Show output even when passing
+        fail_fast: false
+        stages: []      # warnings only, do not block commits/pushes
+
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        language: system
+        entry: python -c "import sys, subprocess; subprocess.run(['uv', 'run', 'mypy', 'app']); sys.exit(0)"
+        files: ^app/
+        pass_filenames: false
+        always_run: true
+        verbose: true
+        stages: []  # warnings only, do not block commits/pushes
+

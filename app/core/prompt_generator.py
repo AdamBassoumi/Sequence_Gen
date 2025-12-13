@@ -173,11 +173,11 @@ class PromptGenerator:
             )
 
             content = response.choices[0].message.content
-            
+
             # Handle potential None content
             if not content:
                 raise ValueError("Empty response from Groq API")
-            
+
             result = json.loads(content)
 
             # Ensure backward compatibility fields exist

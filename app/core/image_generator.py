@@ -35,7 +35,7 @@ class ImageGenerator:
                         f"Failed to generate image after {retries} attempts: {str(e)}"
                     )
                 time.sleep(2**attempt)  # Exponential backoff
-        
+
         # This should never be reached due to the raise above, but mypy needs it
         raise RuntimeError("Unexpected error in generate_image")
 
