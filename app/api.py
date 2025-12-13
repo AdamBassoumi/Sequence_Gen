@@ -16,13 +16,6 @@ from app.core.prompt_generator import GeneratedPrompts, PromptGenerator
 from app.core.watermark_remover import WatermarkRemover
 
 
-# Models
-class StoryRequest(BaseModel):
-    prompt: str
-    max_num_scenes: int = 5
-    remove_watermarks: bool = False
-
-
 class SceneOutput(BaseModel):
     """Model for individual scene output"""
 
