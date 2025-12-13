@@ -43,3 +43,11 @@ The server will start at http://localhost:8000
 #### In a new terminal (activate venv first)
 uv run tests/test_client.py
 Follow the prompts to generate a story sequence.
+
+
+### Future Updates
+
+#### Front End Dev
+#### WaterMark Script
+#### ML_FLOW 
+#### 
