@@ -21,6 +21,7 @@ repos:
         language: system
         entry: python -c "import sys, subprocess; subprocess.run(['uv', 'run', 'flake8', 'app']); sys.exit(0)"
         files: ^app/
+        args: [--max-line-length=90]  # Add this line
         pass_filenames: false
         verbose: true   # Show output even when passing
         fail_fast: false
