@@ -2,12 +2,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 from app.helpers.config import get_settings
 from app.core.image_generator import ImageGenerator
+<<<<<<< HEAD
 
 from app.core.prompt_generator import GeneratedPrompts, PromptGenerator
 from app.core.watermark_remover import WatermarkRemover
 from app.models.StoryModel import StoryModel
 
 from app.schemas import *
+=======
+from app.core.prompt_generator import PromptGenerator
+
+from fastapi import FastAPI
+from app.routes import base, story_gen
+>>>>>>> 2096f44 (changed routes structure)
 
 from app.core.prompt_generator import PromptGenerator
 
