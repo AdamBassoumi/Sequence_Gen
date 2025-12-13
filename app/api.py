@@ -15,6 +15,7 @@ from app.core.image_generator import ImageGenerator
 from app.core.prompt_generator import GeneratedPrompts, PromptGenerator
 from app.core.watermark_remover import WatermarkRemover
 from app.models.StoryModel import StoryModel
+
 from app.schemas import *
 
 # Initialize app
@@ -66,8 +67,8 @@ async def startup_event():
 async def generate_story(request: StoryRequest, background_tasks: BackgroundTasks):
     """Generate a story sequence from a prompt"""
     try:
-        # get story model
-        story_model = StoryModel(image_gen_client=image_gen, outputs_dir=OUTPUTS_DIR)
+        # get story model 
+        story_model = StoryModel(image_gen_client= image_gen, outputs_dir= OUTPUTS_DIR)
 
         # Generate story ID
         story_id = str(uuid.uuid4())
