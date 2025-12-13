@@ -1,7 +1,7 @@
 import time
 import urllib.parse
 from io import BytesIO
-from typing import List, Optional
+from typing import List
 
 import requests
 from PIL import Image

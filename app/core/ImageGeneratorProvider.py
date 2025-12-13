@@ -12,4 +12,4 @@ class ImageGeneratorProvider:
                 self.settings.HUGGING_FACE_KEY, self.settings.HUGGING_FACE_MODEL
             )
         elif self.settings.IMG_GEN_PROVIDER == "PolliNations":
-            return ImageGenerator()
+            return PolliNationsImgGenerator()

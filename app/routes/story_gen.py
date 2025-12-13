@@ -1,28 +1,22 @@
 import json
 import os
-import shutil
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel
+from fastapi.responses import FileResponse
 
-from app.core.prompt_generator import GeneratedPrompts, PromptGenerator
-from app.core.watermark_remover import WatermarkRemover
 from app.helpers.config import get_settings
 from app.models.StoryModel import StoryModel
-from app.schemas import *
+from app.schemas import SceneOutput, StoryRequest, StoryResponse
 
 story_router = APIRouter(prefix="/api/v1/story", tags=["api_v1", "story"])
 
 # Global instances
 # prompt_gen = None
 # image_gen = None
-watermark_remover = None
+# watermark_remover = None
 
 
 # Storage for generated stories

@@ -1,7 +1,6 @@
 import warnings
-from typing import Optional
+from typing import List, Optional
 
-import numpy as np
 import torch
 from diffusers import FluxKontextPipeline
 from PIL import Image
