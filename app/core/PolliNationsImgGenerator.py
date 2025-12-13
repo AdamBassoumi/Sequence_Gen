@@ -7,7 +7,7 @@ import requests
 from PIL import Image
 
 
-class ImageGenerator:
+class PolliNationsImgGenerator:
     def __init__(self) -> None:
         self.base_url = "https://image.pollinations.ai/prompt/"
 

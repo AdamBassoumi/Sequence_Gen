@@ -1,7 +1,7 @@
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 from app.helpers.config import get_settings
-from app.core.image_generator import ImageGenerator
+from app.core.PolliNationsImgGenerator import PolliNationsImgGenerator
 
 from app.core.prompt_generator import PromptGenerator
 
@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from app.routes import base, story_gen
 
 from app.core.HuggingFace import HuggingFace
+from app.core.ImageGeneratorProvider import ImageGeneratorProvider
 # Initialize app
 app = FastAPI(
     title="Photo Sequence Generator API",
@@ -43,11 +44,13 @@ async def startup_event():
     try:
         app.prompt_gen = PromptGenerator()
         # app.image_gen = ImageGenerator()
-        app.image_gen = HuggingFace(
-            settings.HUGGING_FACE_KEY,
-            settings.HUGGING_FACE_MODEL
-        )
-        
+        # app.image_gen = HuggingFace(
+        #     settings.HUGGING_FACE_KEY,
+        #     settings.HUGGING_FACE_MODEL
+        # )
+
+        app.image_gen = ImageGeneratorProvider(settings).create()
+
         # watermark_remover = WatermarkRemover()  # Commented out temporarily
         print("All components initialized successfully")
     except Exception as e:

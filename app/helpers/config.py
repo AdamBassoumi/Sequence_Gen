@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     APP_VERSION: str
 
 
+    IMG_GEN_PROVIDER: str
+
     GROQ_API_KEY: str
 
     HUGGING_FACE_KEY: str
