@@ -15,7 +15,9 @@ from app.core.image_generator import ImageGenerator
 from app.core.prompt_generator import GeneratedPrompts, PromptGenerator
 from app.core.watermark_remover import WatermarkRemover
 
+from app.models.StoryModel import StoryModel 
 
+from app.schemas import *
 
 # Initialize app
 app = FastAPI(
@@ -37,6 +39,7 @@ app.add_middleware(
 prompt_gen = None
 image_gen = None
 watermark_remover = None
+
 
 # Storage for generated stories
 story_store = {}
@@ -65,6 +68,9 @@ async def startup_event():
 async def generate_story(request: StoryRequest, background_tasks: BackgroundTasks):
     """Generate a story sequence from a prompt"""
     try:
+        # get story model 
+        story_model = StoryModel(image_gen_client= image_gen, outputs_dir= OUTPUTS_DIR)
+
         # Generate story ID
         story_id = str(uuid.uuid4())
 
@@ -128,11 +134,12 @@ async def generate_story(request: StoryRequest, background_tasks: BackgroundTask
 
         # Add background task for image generation
         background_tasks.add_task(
-            generate_images_task,
+            story_model.generate_images_task,
             story_id,
             image_prompts,
             scenes,
             request.remove_watermarks,
+            story_store,
         )
 
         return StoryResponse(
@@ -324,90 +331,7 @@ async def health_check():
         "stories_count": len(story_store),
     }
 
-
-# Background task
-async def generate_images_task(
-    story_id: str,
-    prompts: List[str],
-    scenes: List[SceneOutput],
-    remove_watermarks: bool,
-):
-    """Background task to generate images and save to outputs directory"""
-    try:
-        story = story_store[story_id]
-        output_dir = Path(story.get("output_dir", OUTPUTS_DIR / story_id))
-
-        # Generate images
-        images = image_gen.generate_sequence(prompts)
-
-        # Remove watermarks if requested
-        if remove_watermarks and watermark_remover:
-            try:
-                print(f"Removing watermarks for story {story_id}...")
-                images = watermark_remover.remove_watermarks_batch(images)
-            except Exception as e:
-                print(f"Watermark removal failed: {e}, using original images")
-
-        # Save images to output directory
-        saved_paths = []
-        for i, (img, scene) in enumerate(zip(images, scenes)):
-            # Save as scene_1.png, scene_2.png, etc.
-            filename = f"scene_{i+1}.png"
-            image_path = output_dir / filename
-            img.save(image_path, "PNG")
-            saved_paths.append(str(image_path))
-
-            # Update scene with actual image path
-            scene.image_path = str(image_path)
-
-            # Update story scenes data
-            if i < len(story["scenes"]):
-                story["scenes"][i]["image_path"] = str(image_path)
-
-        # Update prompts.json with image paths
-        prompts_file = output_dir / "prompts.json"
-        if prompts_file.exists():
-            with open(prompts_file, "r") as f:
-                prompts_data = json.load(f)
-
-            prompts_data["image_paths"] = saved_paths
-            prompts_data["completed_at"] = datetime.now().isoformat()
-            prompts_data["status"] = "completed"
-
-            with open(prompts_file, "w") as f:
-                json.dump(prompts_data, f, indent=2)
-
-        # Update story in memory
-        story["images"] = saved_paths
-        story["status"] = "completed"
-        story["completed_at"] = datetime.now().isoformat()
-
-        print(f"✅ Story {story_id} completed successfully")
-        print(f"📁 Output saved to: {output_dir}")
-
-    except Exception as e:
-        story_store[story_id]["status"] = "failed"
-        story_store[story_id]["error"] = str(e)
-
-        # Save error info to prompts.json
-        try:
-            output_dir = Path(story.get("output_dir", OUTPUTS_DIR / story_id))
-            prompts_file = output_dir / "prompts.json"
-            if prompts_file.exists():
-                with open(prompts_file, "r") as f:
-                    prompts_data = json.load(f)
-
-                prompts_data["status"] = "failed"
-                prompts_data["error"] = str(e)
-
-                with open(prompts_file, "w") as f:
-                    json.dump(prompts_data, f, indent=2)
-        except:
-            pass
-
-        print(f"❌ Failed to generate images for story {story_id}: {str(e)}")
-
-
+go
 if __name__ == "__main__":
     import uvicorn
 
