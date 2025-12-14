@@ -6,9 +6,9 @@ from PIL import Image
 
 
 class HuggingFace:
-    def __init__(self, api_key, hugging_face_model):
+    def __init__(self, api_key, hugging_face_model, hugging_face_provider):
         self.client = InferenceClient(
-            provider="nscale",
+            provider=hugging_face_provider,  # "nscale",
             api_key=api_key,
         )
         self.hugging_face_model = hugging_face_model
@@ -19,8 +19,10 @@ class HuggingFace:
             try:
 
                 img = self.client.text_to_image(
-                    prompt,
+                    prompt["prompt"],
                     model=self.hugging_face_model,
+                    seed=123456,
+                    negative_prompt=(prompt["negative_prompt"]),
                 )
 
                 # Verify image is valid

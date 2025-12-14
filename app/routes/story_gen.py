@@ -63,7 +63,10 @@ async def generate_story(
                     "visual_style": generated_prompts.visual_style,
                     "character_concept": generated_prompts.character_concept,
                     "character_name": generated_prompts.character_name,
-                    "generated_prompts": [p.prompt for p in generated_prompts.prompts],
+                    "generated_prompts": [
+                        {"prompt": p.prompt, "negative_prompt": p.negative_prompt}
+                        for p in generated_prompts.prompts
+                    ],
                     "created_at": datetime.now().isoformat(),
                 },
                 f,
@@ -71,17 +74,22 @@ async def generate_story(
             )
 
         # Extract the prompt strings
-        image_prompts = [p.prompt for p in generated_prompts.prompts]
+        # image_prompts = [p.prompt for p in generated_prompts.prompts]
+        image_prompts = [
+            {"prompt": p.prompt, "negative_prompt": p.negative_prompt}
+            for p in generated_prompts.prompts
+        ]
 
         # Create initial scene outputs
         scenes = []
-        for i, prompt_text in enumerate(image_prompts):
+        for i, prompt_dict in enumerate(image_prompts):
             scenes.append(
                 SceneOutput(
                     scene_number=i + 1,
-                    prompt=prompt_text,
+                    prompt=prompt_dict["prompt"],
                     image_url=f"/images/{story_id}/{i}.png",
                     image_path=str(story_output_dir / f"scene_{i+1}.png"),
+                    negative_prompt=prompt_dict["negative_prompt"],
                 )
             )
 

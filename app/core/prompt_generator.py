@@ -35,6 +35,7 @@ class StoryPrompt(BaseModel):
         default=None,
         description="Celebrity name ONLY if user explicitly mentioned it",
     )
+    negative_prompt: str = Field(description="Negative prompts, things to avoid")
 
     @validator("action")
     def action_must_contain_verb(cls, v):
@@ -106,57 +107,86 @@ class PromptGenerator:
         Generate independent IMAGE VARIANTS with strong action clarity.
         """
 
-        system_prompt = """You generate SHORT, CLEAR, ACTION-DRIVEN image prompts
-optimized for Pollinations image models.
+        system_prompt = """
+        You are a CREATIVE DIRECTOR and professional visual storyteller for AI image generation.
 
-CRITICAL RULES:
-- NOT a story
-- Each prompt is an independent image
-- ALWAYS produce a grammatically correct action sentence
-- Use clear subject → verb → target structure
-- Avoid tag lists
+        The user will provide ONLY a GENERAL IDEA.
+        Your responsibility is to:
+        - Interpret the idea creatively
+        - Invent a compelling narrative
+        - Design a coherent multi-scene visual story
+        - Decide the number of scenes (up to the maximum provided)
+        - Ensure strong cinematic progression
 
-ACTION RULES:
-- Action MUST include a target (e.g. 'chasing a cat')
-- Prefer motion verbs (chasing, sprinting, fleeing, jumping)
-- Add intensity or direction if possible
+        You are NOT a simple prompt rewriter.
+        You are responsible for STORY, VISUALS, and CONSISTENCY.
 
-VARIATION:
-- Change environment, style, lighting, or mood
-- Keep the core action recognizable
+        GENERAL RESPONSIBILITIES:
+        - Create a creative scenario inspired by the user idea
+        - Identify all primary characters involved (explicit or implied)
+        - Invent meaningful interactions and emotional progression
+        - Design scenes that feel connected as a story
 
-CELEBRITY RULES:
-- If user mentions a celebrity, include name ONLY in character_reference
-- Never describe appearance or roles
+        CRITICAL RULES FOR CELEBRITY HANDLING:
+        1. If the user mentions a celebrity name, include it ONLY in the character_reference field
+        2. DO NOT describe the celebrity's appearance, features, or characteristics
+        3. DO NOT add details about how the celebrity looks
+        4. Focus on SCENE composition, lighting, mood, and background
+        5. Let the AI model handle the celebrity's visual representation
 
-Return VALID JSON EXACTLY in this structure:
-{
-  "story_title": "short title",
-  "visual_style": "general aesthetic",
-  "prompts": [
-    {
-      "primary_subject": "a dog",
-      "action": "chasing a cat at full speed",
-      "environment": "park with grass and trees",
-      "style": "watercolor painting",
-      "lighting": "bright sunlight",
-      "mood": "playful",
-      "character_reference": null
-    }
-  ]
-}
-"""
+        CRITICAL MULTI-CHARACTER CONSISTENCY RULES (MANDATORY):
+        1. Identify ALL primary characters from the user idea.
+        2. For EACH primary character, create a FIXED CHARACTER CONTRACT:
+        - A concise visual identity description
+        - Reused VERBATIM across all scenes
+        3. Character contracts MUST remain consistent across scenes.
+        4. Every scene MUST include ALL primary characters.
+        5. Every scene MUST explicitly state that ALL characters are visible in the same scene.
+        6. Every scene MUST describe INTERACTIONS between the characters.
+        7. Do NOT introduce new characters unless required by the user idea.
+        8. Do NOT remove characters between scenes.
+        9. Do NOT allow single-character scenes unless the user explicitly requests it.
+
+        NEGATIVE PROMPT RULES:
+        For each scene, generate a negative prompt that:
+        - Prevents missing characters
+        - Prevents single-subject images
+        - Prevents cropped or out-of-frame characters
+        - Prevents background-only images
+        - Prevents low-quality or incoherent images
+
+        NEGATIVE PROMPTS MUST BE DYNAMIC and ADAPTED to the scene and characters.
+
+        Return your response as a VALID JSON object with this EXACT structure:
+
+        {
+        "story_title": "Creative title that reflects the invented scenario",
+        "visual_style": "Overall visual aesthetic (e.g., cinematic manga, fantasy realism)",
+        "character_concept": "Summary of the characters and invented story",
+        "character_name": "Optional character name for reference",
+        "prompts": [
+            {
+            "description": "Narrative purpose of the scene",
+            "scene_description": "Specific moment in the invented story",
+            "character_reference": "ONLY if a celebrity is mentioned, otherwise null",
+            "visual_context": "Full image prompt including all character contracts verbatim",
+            "background_details": "Detailed environment description",
+            "lighting_style": "Lighting and atmosphere description",
+            "consistency_keywords": ["keyword1", "keyword2"],
+            "negative_prompt": "Scene-specific negative prompt"
+            }
+        ]
+        }
+        """
 
         user_prompt = f"""
-Create up to {max_num_scenes} image variants for this concept:
+        User idea:
+        "{user_prompt}"
 
-"{user_prompt}"
+        Maximum number of scenes: {max_num_scenes}
 
-Rules:
-- Never output broken grammar
-- Never omit the action target
-- Each variant must stand alone
-"""
+        Create a creative visual story inspired by this idea.
+        """
 
         response = self.client.chat.completions.create(
             model=self.model,

@@ -9,7 +9,9 @@ class ImageGeneratorProvider:
     def create(self):
         if self.settings.IMG_GEN_PROVIDER == "HUGGING_FACE":
             return HuggingFace(
-                self.settings.HUGGING_FACE_KEY, self.settings.HUGGING_FACE_MODEL
+                self.settings.HUGGING_FACE_KEY,
+                self.settings.HUGGING_FACE_MODEL,
+                self.settings.HUGGING_FACE_PROVIDER,
             )
         elif self.settings.IMG_GEN_PROVIDER == "PolliNations":
             return PolliNationsImgGenerator()

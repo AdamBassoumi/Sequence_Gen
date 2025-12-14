@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     HUGGING_FACE_KEY: str
     HUGGING_FACE_MODEL: str
+    HUGGING_FACE_PROVIDER: str
 
     POLLINATIONS_TIMEOUT: int
     POLLINATIONS_RETRIES: int

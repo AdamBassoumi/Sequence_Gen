@@ -10,3 +10,4 @@ class SceneOutput(BaseModel):
     prompt: str
     image_url: Optional[str] = None
     image_path: Optional[str] = None  # Local file path
+    negative_prompt: str
