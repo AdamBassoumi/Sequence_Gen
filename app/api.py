@@ -1,11 +1,7 @@
-from pathlib import Path
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.HuggingFace import HuggingFace
 from app.core.ImageGeneratorProvider import ImageGeneratorProvider
-from app.core.PolliNationsImgGenerator import PolliNationsImgGenerator
 from app.core.prompt_generator import PromptGenerator
 from app.helpers.config import get_settings
 from app.routes import base, story_gen
@@ -34,16 +30,10 @@ story_store = {}
 @app.on_event("startup")
 async def startup_event():
     """Initialize components on startup"""
-    # global prompt_gen, image_gen, watermark_remover
 
     settings = get_settings()
     try:
         app.prompt_gen = PromptGenerator()
-        # app.image_gen = ImageGenerator()
-        # app.image_gen = HuggingFace(
-        #     settings.HUGGING_FACE_KEY,
-        #     settings.HUGGING_FACE_MODEL
-        # )
 
         app.image_gen = ImageGeneratorProvider(settings).create()
 

@@ -1,6 +1,9 @@
 import json
 from datetime import datetime
 from pathlib import Path
+from typing import List
+
+from app.schemas import SceneOutput
 
 
 class StoryModel:
@@ -26,13 +29,13 @@ class StoryModel:
             # Generate images
             images = self.image_gen_client.generate_sequence(prompts)
 
-            # Remove watermarks if requested
-            if remove_watermarks and watermark_remover:
-                try:
-                    print(f"Removing watermarks for story {story_id}...")
-                    images = watermark_remover.remove_watermarks_batch(images)
-                except Exception as e:
-                    print(f"Watermark removal failed: {e}, using original images")
+            # # Remove watermarks if requested
+            # if remove_watermarks and watermark_remover:
+            #     try:
+            #         print(f"Removing watermarks for story {story_id}...")
+            #         images = watermark_remover.remove_watermarks_batch(images)
+            #     except Exception as e:
+            #         print(f"Watermark removal failed: {e}, using original images")
 
             # Save images to output directory
             saved_paths = []
