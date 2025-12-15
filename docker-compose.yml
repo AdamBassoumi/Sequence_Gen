@@ -14,13 +14,12 @@ services:
 
   frontend:
     build:
-      context: https://github.com/AdamBassoumi/Sequence_Gen.git
-      dockerfile: frontend/Dockerfile
+      context: https://github.com/AdamBassoumi/Sequence_Gen.git#main:frontend
+      dockerfile: Dockerfile
     container_name: sequence_gen_frontend
-    environment:
-      - VITE_API_BASE_URL=http://backend:8000
     ports:
       - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://backend:8000
     depends_on:
       - backend
-    restart: unless-stopped
