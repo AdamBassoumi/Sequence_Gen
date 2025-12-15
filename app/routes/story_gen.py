@@ -87,7 +87,9 @@ async def generate_story(
                 SceneOutput(
                     scene_number=i + 1,
                     prompt=prompt_dict["prompt"],
-                    image_url=f"/images/{story_id}/{i}.png",
+                    # Frontend consommera cette URL relative en la préfixant par l'API_BASE_URL
+                    # Ex: http://localhost:8000/api/v1/story/images/{story_id}/{i}
+                    image_url=f"/api/v1/story/images/{story_id}/{i}",
                     image_path=str(story_output_dir / f"scene_{i+1}.png"),
                     negative_prompt=prompt_dict["negative_prompt"],
                 )
@@ -150,7 +152,9 @@ async def get_story(story_id: str):
         image_path = None
 
         if story.get("images") and i < len(story["images"]):
-            image_url = f"/images/{story_id}/{i}.png"
+            # Doit correspondre à la route FastAPI définie plus bas:
+            # @story_router.get("/images/{story_id}/{image_index}")
+            image_url = f"/api/v1/story/images/{story_id}/{i}"
             image_path = story["images"][i]
 
         scenes.append(
