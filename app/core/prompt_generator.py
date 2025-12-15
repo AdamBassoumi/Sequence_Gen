@@ -4,95 +4,107 @@ import re
 from typing import List, Optional
 
 from groq import Groq
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 
 
-# =========================================================
-# PROMPT MODEL (ACTION-FIRST, GRAMMAR-SAFE)
-# =========================================================
 class StoryPrompt(BaseModel):
-    """
-    Single image variant prompt.
-    Optimized for Pollinations / SD-like models.
-    """
+    """Model for individual story section prompts"""
 
-    primary_subject: str = Field(description="Main actor (e.g. 'a golden retriever')")
-    action: str = Field(
-        description="Clear verb phrase including target (e.g. 'chasing a black cat')"
-    )
-    environment: str = Field(
-        description="Setting with minimal detail (e.g. 'green park with trees')"
-    )
-    style: str = Field(description="Art or render style (e.g. 'watercolor painting')")
-    lighting: str = Field(
-        description="Lighting or time of day (e.g. 'bright sunlight')"
-    )
-    mood: Optional[str] = Field(
-        default=None,
-        description="Optional mood (e.g. playful, tense, dramatic)",
-    )
+    description: str = Field(description="Overall scene description")
+    scene_description: str = Field(description="Specific scene details")
     character_reference: Optional[str] = Field(
         default=None,
-        description="Celebrity name ONLY if user explicitly mentioned it",
+        description="Optional celebrity/character name ONLY if provided by user",
+    )
+    visual_context: str = Field(
+        description="Visual mood, composition, and style elements",
+        examples=["cinematic wide shot", "close-up portrait", "dynamic action scene"],
+    )
+    background_details: str = Field(description="Detailed background description")
+    lighting_style: str = Field(description="Lighting description")
+    consistency_keywords: List[str] = Field(
+        default_factory=lambda: ["consistent visual style", "cohesive narrative"],
+        description="Keywords to maintain consistency",
     )
     negative_prompt: str = Field(description="Negative prompts, things to avoid")
 
-    @validator("action")
-    def action_must_contain_verb(cls, v):
-        if len(v.split()) < 2:
-            raise ValueError("Action must be a verb phrase, not a single word")
-        return v
-
+    # Add prompt property for API compatibility
     @property
     def prompt(self) -> str:
-        parts = []
+        """Generate a complete prompt string for image generation"""
+        components = []
 
+        # Add character reference if present
         if self.character_reference:
-            parts.append(self.character_reference)
+            components.append(f"{self.character_reference}")
 
-        # Core sentence — this is CRITICAL
-        parts.append(f"{self.primary_subject} {self.action}")
+        # Add scene description
+        components.append(self.description)
 
-        parts.append(self.environment)
+        # Add visual context
+        components.append(self.visual_context)
 
-        if self.mood:
-            parts.append(self.mood)
+        # Add environment and lighting
+        components.append(f"in {self.background_details}")
+        components.append(f"with {self.lighting_style}")
 
-        parts.append(self.style)
-        parts.append(self.lighting)
+        # Add style and quality keywords
+        components.append("photorealistic, cinematic, 8k, high detail")
 
-        # Motion + quality bias (cheap but effective)
-        parts.append("dynamic action, motion blur")
-        parts.append("high quality, detailed")
+        # Add consistency keywords
+        if self.consistency_keywords:
+            components.append(", ".join(self.consistency_keywords))
 
-        prompt = ", ".join(parts)
-        return self._sanitize(prompt)
+        # Join all components
+        prompt = ", ".join(components)
 
-    def _sanitize(self, prompt: str) -> str:
-        # Remove accidental physical descriptions
-        prompt = re.sub(r"(?i)\b(his|her)\b.*?(?:,|$)", "", prompt)
+        # Clean up any accidental descriptive phrases about celebrities
+        prompt = self._clean_celebrity_descriptions(prompt)
+
+        return prompt
+
+    def _clean_celebrity_descriptions(self, prompt: str) -> str:
+        """Remove any accidental celebrity physical descriptions"""
+        patterns_to_remove = [
+            r" with (?:his|her) (?:signature|distinctive|characteristic) .+?(?:,|$)",
+            r" featuring (?:his|her) .+? (?:appearance|look|style)",
+            r" (?:wearing|sporting) (?:his|her) .+?(?:,|$)",
+            r" (?:known for|recognizable by) .+?(?:,|$)",
+            r" with (?:intense|piercing|striking) .+?(?:,|$)",
+        ]
+
+        for pattern in patterns_to_remove:
+            prompt = re.sub(pattern, "", prompt, flags=re.IGNORECASE)
+
+        # Remove double commas and clean up
         prompt = re.sub(r",\s*,", ",", prompt)
+        prompt = re.sub(r",\s*$", "", prompt)
+
         return prompt.strip()
 
 
-# =========================================================
-# OUTPUT CONTAINER
-# =========================================================
 class GeneratedPrompts(BaseModel):
-    story_title: str
-    visual_style: str
+    """Model for the complete story prompts"""
+
+    story_title: str = Field(description="Title of the story")
+    visual_style: str = Field(
+        description="Overall visual aesthetic",
+        examples=["cinematic thriller", "epic fantasy", "sci-fi adventure"],
+    )
     prompts: List[StoryPrompt]
 
-    # Backward compatibility
-    character_concept: Optional[str] = None
-    character_name: Optional[str] = None
+    # Backward compatibility fields
+    character_concept: Optional[str] = Field(
+        default=None, description="Character concept (backward compatibility)"
+    )
+    character_name: Optional[str] = Field(
+        default=None, description="Character name (backward compatibility)"
+    )
 
 
-# =========================================================
-# PROMPT GENERATOR
-# =========================================================
 class PromptGenerator:
     def __init__(self, api_key: Optional[str] = None):
+        """Initialize Groq client"""
         self.api_key = api_key or os.getenv("GROQ_API_KEY")
         if not self.api_key:
             raise ValueError("GROQ_API_KEY not found in environment variables")
@@ -103,9 +115,7 @@ class PromptGenerator:
     def generate_story_prompts(
         self, user_prompt: str, max_num_scenes: int = 3
     ) -> GeneratedPrompts:
-        """
-        Generate independent IMAGE VARIANTS with strong action clarity.
-        """
+        """Generate story prompts while preserving user's celebrity references"""
 
         system_prompt = """
         You are a CREATIVE DIRECTOR and professional visual storyteller for AI image generation.
@@ -188,28 +198,71 @@ class PromptGenerator:
         Create a creative visual story inspired by this idea.
         """
 
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.6,
-            max_tokens=1200,
-            response_format={"type": "json_object"},
-        )
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.7,
+                max_tokens=2000,
+                response_format={"type": "json_object"},
+            )
 
-        content = response.choices[0].message.content
-        if not content:
-            raise ValueError("Empty response from Groq API")
+            content = response.choices[0].message.content
 
-        result = json.loads(content)
+            # Handle potential None content
+            if not content:
+                raise ValueError("Empty response from Groq API")
 
-        # Backward compatibility
-        result.setdefault("character_concept", result.get("story_title", ""))
-        result.setdefault("character_name", None)
+            result = json.loads(content)
 
-        return GeneratedPrompts(**result)
+            # Ensure backward compatibility fields exist
+            if "character_concept" not in result:
+                result["character_concept"] = result.get("visual_style", "")
+            if "character_name" not in result:
+                result["character_name"] = result.get(
+                    "character_concept", result.get("visual_style", "")
+                )
+
+            return GeneratedPrompts(**result)
+
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON response from API: {str(e)}")
+        except Exception as e:
+            raise Exception(f"Failed to generate prompts: {str(e)}")
 
     def create_image_prompt(self, story_prompt: StoryPrompt) -> str:
+        """Create AI-friendly image prompt that preserves celebrity references safely"""
+        # Just use the prompt property from StoryPrompt
         return story_prompt.prompt
+
+    def validate_prompt_safety(self, prompt: str) -> tuple[bool, List[str]]:
+        """Validate that prompt doesn't contain problematic celebrity descriptions"""
+        warnings = []
+
+        problematic_patterns = [
+            (
+                r"(?i)\b(his|her) (?:hair|eyes|face|smile|body|build)\b",
+                "Physical description of celebrity",
+            ),
+            (
+                r"(?i)\b(wearing|dressed in) (?:his|her) (?:signature|trademark)\b",
+                "Signature look description",
+            ),
+            (
+                r"(?i)\b(as seen in|from the movie|portraying)\b",
+                "Specific role reference",
+            ),
+            (
+                r"(?i)\b(younger|older|aged|youthful) (?:version|look)\b",
+                "Age-specific description",
+            ),
+        ]
+
+        for pattern, warning in problematic_patterns:
+            if re.search(pattern, prompt):
+                warnings.append(warning)
+
+        return len(warnings) == 0, warnings
