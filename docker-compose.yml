@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./Sequence_Gen
+      dockerfile: Dockerfile
+    container_name: sequence_gen_backend
+    env_file:
+      - ./Sequence_Gen/.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./Sequence_Gen:/app
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sequence_gen_frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://backend:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
