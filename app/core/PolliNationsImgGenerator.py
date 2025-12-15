@@ -40,7 +40,7 @@ class PolliNationsImgGenerator:
         # This should never be reached due to the raise above, but mypy needs it
         raise RuntimeError("Unexpected error in generate_image")
 
-    def generate_sequence(self, prompts: List[str]) -> List[Image.Image]:
+    def generate_sequence(self, prompts: List[str], quality: int | None = None) -> List[Image.Image]:
         """Generate a sequence of images"""
         images: List[Image.Image] = []
 

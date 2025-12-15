@@ -20,14 +20,15 @@ class StoryModel:
         scenes: List[SceneOutput],
         remove_watermarks: bool,
         story_store: dict,
+        quality: int | None = None,
     ):
         """Background task to generate images and save to outputs directory"""
         try:
             story = story_store[story_id]
             output_dir = Path(story.get("output_dir", self.OUTPUTS_DIR / story_id))
 
-            # Generate images
-            images = self.image_gen_client.generate_sequence(prompts)
+            # Generate images (quality can be used by the underlying provider)
+            images = self.image_gen_client.generate_sequence(prompts, quality=quality)
 
             # # Remove watermarks if requested
             # if remove_watermarks and watermark_remover:

@@ -113,7 +113,10 @@ class PromptGenerator:
         self.model = "llama-3.1-8b-instant"
 
     def generate_story_prompts(
-        self, user_prompt: str, max_num_scenes: int = 3
+        self,
+        user_prompt: str,
+        max_num_scenes: int = 3,
+        visual_style: str | None = None,
     ) -> GeneratedPrompts:
         """Generate story prompts while preserving user's celebrity references"""
 
@@ -189,11 +192,18 @@ class PromptGenerator:
         }
         """
 
+        style_hint = (
+            f"Preferred visual style: {visual_style}.\n"
+            if visual_style
+            else ""
+        )
+
         user_prompt = f"""
         User idea:
         "{user_prompt}"
 
         Maximum number of scenes: {max_num_scenes}
+        {style_hint}
 
         Create a creative visual story inspired by this idea.
         """
@@ -225,6 +235,11 @@ class PromptGenerator:
                 result["character_name"] = result.get(
                     "character_concept", result.get("visual_style", "")
                 )
+
+            # If a visual style hint was provided, prefer it when reasonable
+            if visual_style:
+                if not result.get("visual_style"):
+                    result["visual_style"] = visual_style
 
             return GeneratedPrompts(**result)
 

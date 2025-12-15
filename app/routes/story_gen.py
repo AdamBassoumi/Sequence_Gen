@@ -49,7 +49,9 @@ async def generate_story(
 
         # Generate prompts
         generated_prompts = request.app.prompt_gen.generate_story_prompts(
-            story_request.prompt, max_num_scenes=story_request.max_num_scenes
+            story_request.prompt,
+            max_num_scenes=story_request.max_num_scenes,
+            visual_style=story_request.visual_style,
         )
 
         # Save prompts to JSON file
@@ -108,6 +110,8 @@ async def generate_story(
             "images": [],
             "output_dir": str(story_output_dir),
             "created_at": datetime.now().isoformat(),
+            "quality": story_request.quality,
+            "visual_style_hint": story_request.visual_style,
         }
         story_store[story_id] = story_data
 
@@ -119,6 +123,7 @@ async def generate_story(
             scenes,
             story_request.remove_watermarks,
             story_store,
+            story_request.quality,
         )
 
         return StoryResponse(

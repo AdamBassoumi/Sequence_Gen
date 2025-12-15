@@ -27,6 +27,8 @@ function App() {
   const [prompt, setPrompt] = useState("");
   const [maxScenes, setMaxScenes] = useState(5);
   const [removeWatermarks, setRemoveWatermarks] = useState(false);
+  const [visualStyle, setVisualStyle] = useState("réaliste cinématographique");
+  const [quality, setQuality] = useState(2); // 1 = rapide, 2 = normal, 3 = haute qualité
 
   const [loading, setLoading] = useState(false);
   const [polling, setPolling] = useState(false);
@@ -78,6 +80,8 @@ function App() {
           prompt,
           max_num_scenes: maxScenes,
           remove_watermarks: removeWatermarks,
+            visual_style: visualStyle,
+            quality,
         }),
       });
 
@@ -196,6 +200,42 @@ function App() {
               />
             </div>
 
+            <div style={{ minWidth: "220px" }}>
+              <label
+                htmlFor="visualStyle"
+                style={{
+                  display: "block",
+                  marginBottom: "0.5rem",
+                  fontWeight: 500,
+                }}
+              >
+                Style visuel
+              </label>
+              <select
+                id="visualStyle"
+                value={visualStyle}
+                onChange={(e) => setVisualStyle(e.target.value)}
+                style={{
+                  width: "100%",
+                  borderRadius: "0.75rem",
+                  padding: "0.5rem 0.75rem",
+                  border: "1px solid rgba(148,163,184,0.5)",
+                  backgroundColor: "rgba(15,23,42,0.9)",
+                  color: "#e5e7eb",
+                }}
+              >
+                <option value="réaliste cinématographique">
+                  Réaliste cinématographique
+                </option>
+                <option value="style anime japonais">Anime</option>
+                <option value="bande dessinée stylisée">Comic / BD</option>
+                <option value="illustration aquarelle">Aquarelle</option>
+                <option value="noir et blanc dramatique">
+                  Noir et blanc dramatique
+                </option>
+              </select>
+            </div>
+
             <label
               style={{
                 display: "flex",
@@ -212,6 +252,38 @@ function App() {
               />
               <span>Supprimer les watermarks</span>
             </label>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.25rem",
+              marginBottom: "1rem",
+            }}
+          >
+            <label
+              htmlFor="quality"
+              style={{
+                fontWeight: 500,
+              }}
+            >
+              Qualité / temps de génération
+            </label>
+            <input
+              id="quality"
+              type="range"
+              min={1}
+              max={3}
+              step={1}
+              value={quality}
+              onChange={(e) => setQuality(Number(e.target.value))}
+            />
+            <span style={{ fontSize: "0.85rem", color: "#9ca3af" }}>
+              {quality === 1 && "1 - Rapide (qualité plus faible)"}
+              {quality === 2 && "2 - Équilibré"}
+              {quality === 3 && "3 - Haute qualité (plus lent)"}
+            </span>
           </div>
 
           <button

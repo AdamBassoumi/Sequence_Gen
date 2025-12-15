@@ -12,6 +12,10 @@ class ImageGeneratorProvider:
                 self.settings.HUGGING_FACE_KEY,
                 self.settings.HUGGING_FACE_MODEL,
                 self.settings.HUGGING_FACE_PROVIDER,
+                num_inference_steps=self.settings.HUGGING_FACE_NUM_INFERENCE_STEPS,
+                guidance_scale=self.settings.HUGGING_FACE_GUIDANCE_SCALE,
+                width=self.settings.HUGGING_FACE_WIDTH,
+                height=self.settings.HUGGING_FACE_HEIGHT,
             )
         elif self.settings.IMG_GEN_PROVIDER == "PolliNations":
             return PolliNationsImgGenerator()
