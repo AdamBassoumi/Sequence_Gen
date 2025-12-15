@@ -13,6 +13,7 @@ class PolliNationsImgGenerator:
 
     def generate_image(self, prompt: str, retries: int = 3) -> Image.Image:
         """Generate image from Pollinations.ai"""
+        prompt = str(prompt)
         for attempt in range(retries):
             try:
                 encoded_prompt = urllib.parse.quote(prompt)
