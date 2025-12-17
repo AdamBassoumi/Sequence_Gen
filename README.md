@@ -1,53 +1,98 @@
-# Photo Sequence Generator
+# 📸 AI Photo Sequence Generator
+
 Generate consistent photo sequences from text prompts using AI. This project uses Groq for prompt generation and Pollinations.ai for image generation.
+
+## ✨ Features
+
+*   AI-Powered Story Generation: Create detailed, multi-scene narratives from simple prompts
+
+*   Easy Deployment: Docker Compose setup with one-command 
 
 ## 🚀 Quick Start
 
-### 1. Prerequisites
+### Prerequisites
 - Python 3.10 or higher
-- UV package manager (fast Python package installer)
+- UV package manager
 - Groq API key (get one at https://console.groq.com/keys)
 
-### 2. Install UV (if not already installed)
-pip install uv
-### 3. Clone and Setup
+### Production Setup with Docker
 
-#### Clone the repository
+1. Configure environment:
+
+```bash
+cp .env.example .env
+```
+### Edit the .env file with your actual API key
+
+2. Deploy with Docker Compose:
+
+bash
+docker-compose up --build
+
+The application will be available at:
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+
+### Development Setup
+
+#### 1. Clone and Setup
+
+bash
 git clone <your-repository-url>
 cd sequence_gen_project
 
-##### Create and activate virtual environment with UV
+# Create and activate virtual environment with UV
 uv venv
 
-
-### 4. Install Dependencies
-
+# Install dependencies
 uv sync
-### 5. Configure Environment
 
-# Create environment file
+# Configure environment
 echo "GROQ_API_KEY=your_groq_api_key_here" > .env
-
 # Edit the .env file with your actual API key
 
-### 🏃‍♂️ Running the Application
-Start the FastAPI Server
-#### Run the server
-uv run -m app.main
+#### 2. Running the Application
 
-#### Or with uvicorn directly:
+Start the FastAPI Server:
+
+```bash
+uv run -m app.main
+```
+Or with uvicorn directly:
+
+```bash
 uvicorn app.api:app --reload --host 0.0.0.0 --port 8000
+```
 The server will start at http://localhost:8000
 
-### Test with the Client Script
-#### In a new terminal (activate venv first)
-uv run tests/test_client.py
-Follow the prompts to generate a story sequence.
+#### 3. Running the Frontend
 
+In a new terminal:
 
-### Future Updates
+``` bash
+cd frontend
+npm install
+npm run dev
+```
 
-#### Front End Dev (like a manga)
-#### WaterMark Script
-#### MLOPS : CI/CD
-#### Support For Image Captioning 
+## 🗺️ Future Roadmap
+
+- Enhanced Frontend: Comic/storyboard interface
+- Watermarking Script: Automatic image watermarking
+- MLOps Pipeline: CI/CD for model updates
+- Image Captioning: Generate descriptive captions
+- Prompt Builder UI: Interactive prompt crafting
+
+## ⚠️ Important Notes
+
+- API Keys: Never commit .env file or expose API keys
+- Ethical Use: Respect copyright and content policies
+- Cost Management: Monitor usage of external AI APIs
+
+## 🤝 Contributing
+
+Contributions welcome! Submit a Pull Request.
+
+## 📄 License
+
+MIT License.
